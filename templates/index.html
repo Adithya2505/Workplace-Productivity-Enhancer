@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Multi-Agent Productivity Application</title>
+
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+
+<style id="lightCss">
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1000px; margin: 30px auto; padding: 0 20px 40px; background-color: #f9fafe; color: #333; }
+header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 30px; border-bottom: 3px solid #4a90e2; }
+header h1 { margin: 0; font-weight: 700; color: #1a3e72; font-size: 2rem; white-space: nowrap; }
+#modeToggle { background-color: #4a90e2; color: white; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 1rem; transition: background-color 0.3s ease; }
+#modeToggle:hover { background-color: #357abd; }
+
+/* Sidebar */
+.sidebar { position: fixed; top: 90px; left: 20px; width: 160px; background: white; border-radius: 8px; box-shadow: 0 3px 8px rgb(0 0 0 / 0.08); padding: 10px 0; z-index: 10; }
+.sidebar a { display: block; font-weight: 600; color: #1a3e72; padding: 12px 20px; text-decoration: none; cursor: pointer; }
+.sidebar a.active, .sidebar a:hover { background-color: #4a90e2; color: white; border-radius: 6px; }
+
+main { margin-left: 200px; padding-bottom: 60px; }
+section.tab-content { display: none; }
+section.tab-content.active { display: block; }
+
+/* Forms */
+form { margin-top: 20px; }
+label { font-weight: 700; margin-bottom: 6px; display: block; }
+textarea, input[type="text"], input[type="datetime-local"], input[type="number"] { width: 100%; border-radius: 6px; border: 1px solid #ccc; padding: 10px 12px; font-size: 1rem; resize: vertical; margin-bottom: 12px; }
+button { background-color: #4a90e2; color: white; padding: 12px 28px; border: none; border-radius: 10px; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: background-color 0.3s ease; margin-top: 6px; }
+button:disabled { background-color: #a6c8f5; cursor: not-allowed; }
+button:hover:not(:disabled) { background-color: #357abd; }
+
+/* Agents UI */
+.agent-list { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+.agent-item { min-width: 150px; background: white; border-radius: 8px; padding: 10px 15px; box-shadow: 0 3px 8px rgb(0 0 0 / 0.08); user-select: none; border: 2px solid transparent; cursor: pointer; transition: border-color 0.3s; }
+.agent-item:hover { border-color: #4a90e2; }
+.agent-item input[type="checkbox"]:checked + span { font-weight: 700; color: #1a3e72; }
+.results { margin-top: 30px; }
+.agent-result { background: white; border-radius: 12px; box-shadow: 0 3px 12px rgb(0 0 0 / 0.1); padding: 20px; margin-bottom: 25px; }
+.agent-result > h3 { margin: 0 0 15px 0; color: #4a90e2; cursor: pointer; user-select: none; }
+.result-content { white-space: pre-wrap; font-size: 1rem; line-height: 1.4; color: #222; }
+.collapsed .result-content { display: none; }
+
+/* Custom Calendar Container  */
+#calendarContainer { max-width: 900px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 0 10px rgb(0 0 0 / 0.1); padding: 16px; height: 620px; }
+.cal-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.cal-toolbar .title { font-weight:700; color:#1a3e72; }
+.cal-toolbar .btns button { background:#4a90e2; color:#fff; border:none; border-radius:6px; padding:6px 10px; margin-left:6px; font-weight:700; cursor:pointer; }
+.calendar-grid { width:100%; height:560px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; display:grid; }
+.calendar-grid.month { grid-template-columns: repeat(7, 1fr); grid-template-rows: 32px repeat(6, 1fr); }
+.calendar-grid.week { grid-template-columns: 64px repeat(7, 1fr); grid-template-rows: repeat(13, 1fr); }
+.calendar-grid.day { grid-template-columns: 70px 1fr; grid-template-rows: repeat(13, 1fr); }
+.cal-cell { border:1px solid #e5e7eb; padding:4px 6px; position:relative; overflow:hidden; }
+.cal-cell.header { background:#f1f4fb; color:#1a3e72; font-weight:700; text-align:center; }
+.cal-cell.time { background:#f8fafc; color:#1a3e72; font-weight:600; text-align:right; padding-right:8px; }
+.cal-event { background:#4a90e2; color:#fff; border-radius:6px; padding:2px 6px; font-size:.92rem; font-weight:700; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+.cal-event.selected { outline: 3px solid #ffb703; }
+
+/* Reminders panel */
+.reminders-panel { margin: 16px 0; background: #ffffff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 12px 14px; }
+.reminders-panel h3 { margin: 0 0 10px 0; display:flex; justify-content: space-between; align-items:center; color:#1a3e72; }
+.reminder-item { display:flex; justify-content: space-between; align-items:center; background:#f7f9ff; border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; margin-bottom:8px; }
+.reminder-item button { margin:0; padding:6px 10px; border-radius:6px; }
+
+/* Tasks additions */
+.efficiency-widget { display:flex; align-items:center; gap:10px; margin-top:12px; background:#ffffff; padding:10px 12px; border-radius:8px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+.efficiency-widget span.value { font-weight:800; color:#1a3e72; }
+.active-tasks { margin-top:16px; display:grid; grid-template-columns: 1fr; gap:10px; }
+.task-card { display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; box-shadow:0 2px 6px rgba(0,0,0,.05); }
+.task-title { font-weight:700; color:#1a3e72; }
+.task-meta { font-size:.95rem; color:#444; }
+</style>
+
+<style id="darkCss" disabled>
+body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; max-width:1000px; margin:30px auto; padding:0 20px 40px; background-color:#181d23; color:#e5e7eb; }
+header { display:flex; justify-content:space-between; align-items:center; padding-bottom:20px; margin-bottom:30px; border-bottom:3px solid #3b82f6; }
+header h1 { margin:0; font-weight:700; color:#afcbff; font-size:2rem; white-space:nowrap; }
+#modeToggle { background-color:#3b82f6; color:white; padding:8px 16px; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:1rem; transition:background-color .3s ease; }
+#modeToggle:hover { background-color:#265c9e; }
+
+.sidebar { position:fixed; top:90px; left:20px; width:160px; background:#22262e; border-radius:8px; box-shadow:0 3px 8px rgb(0 0 0 / 0.18); padding:10px 0; z-index:10; }
+.sidebar a { display:block; font-weight:600; color:#8ec9fc; padding:12px 20px; text-decoration:none; cursor:pointer; }
+.sidebar a.active, .sidebar a:hover { background-color:#3b82f6; color:white; border-radius:6px; }
+
+main { margin-left:200px; padding-bottom:60px; }
+section.tab-content { display:none; }
+section.tab-content.active { display:block; }
+
+form { margin-top:20px; }
+label { font-weight:700; margin-bottom:6px; display:block; }
+textarea, input[type="text"], input[type="datetime-local"], input[type="number"] { width:100%; border-radius:6px; border:1px solid #3b82f6; background:#22262e; color:#e5e7eb; padding:10px 12px; font-size:1rem; resize:vertical; margin-bottom:12px; }
+button { background-color:#3b82f6; color:white; padding:12px 28px; border:none; border-radius:10px; font-weight:700; font-size:1.1rem; cursor:pointer; transition:background-color .3s ease; margin-top:6px; }
+button:disabled { background-color:#274689; cursor:not-allowed; }
+button:hover:not(:disabled) { background-color:#265c9e; }
+
+.agent-list { display:flex; flex-wrap:wrap; gap:15px; margin-bottom:20px; }
+.agent-item { min-width:150px; background:#22262e; border-radius:8px; padding:10px 15px; box-shadow:0 3px 8px rgb(0 0 0 / 0.18); user-select:none; border:2px solid transparent; cursor:pointer; transition:border-color .3s; }
+.agent-item:hover { border-color:#3b82f6; }
+.agent-item input[type="checkbox"]:checked + span { font-weight:700; color:#8ec9fc; }
+
+.results { margin-top:30px; }
+.agent-result { background:#22262e; border-radius:12px; box-shadow:0 3px 12px rgb(0 0 0 / 0.22); padding:20px; margin-bottom:25px; }
+.agent-result > h3 { margin:0 0 15px 0; color:#8ec9fc; cursor:pointer; user-select:none; }
+.result-content { white-space:pre-wrap; font-size:1rem; line-height:1.4; color:#cde1ff; }
+.collapsed .result-content { display:none; }
+
+#calendarContainer { max-width:900px; margin:0 auto; background:#22262e; border-radius:10px; box-shadow:0 0 10px rgb(0 0 0 / 0.22); padding:16px; height:620px; }
+.cal-toolbar .title { color:#8ec9fc; }
+.cal-toolbar .btns button { background:#3b82f6; color:#fff; }
+.calendar-grid .cal-cell { border-color:#2c3150; }
+.calendar-grid .cal-cell.header { background:#2a2f4a; color:#8ec9fc; }
+.calendar-grid .cal-cell.time { background:#1d2136; color:#8ec9fc; }
+.cal-event { background:#3b82f6; color:#fff; }
+.cal-event.selected { outline: 3px solid #fbbf24; }
+
+
+.reminders-panel { margin:16px 0; background:#22262e; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.25); padding:12px 14px; }
+.reminders-panel h3 { margin:0 0 10px 0; display:flex; justify-content:space-between; align-items:center; color:#8ec9fc; }
+.reminder-item { display:flex; justify-content:space-between; align-items:center; background:#1d2136; border:1px solid #2c3150; border-radius:8px; padding:8px 10px; margin-bottom:8px; }
+.reminder-item button { margin:0; padding:6px 10px; border-radius:6px; background:#3b82f6; color:#fff; }
+
+.efficiency-widget { display:flex; align-items:center; gap:10px; margin-top:12px; background:#22262e; padding:10px 12px; border-radius:8px; box-shadow:0 1px 6px rgba(0,0,0,.25); }
+.efficiency-widget span.value { font-weight:800; color:#8ec9fc; }
+.active-tasks { margin-top:16px; display:grid; grid-template-columns:1fr; gap:10px; }
+.task-card { display:flex; justify-content:space-between; align-items:center; background:#22262e; border:1px solid #2c3150; border-radius:10px; padding:10px 12px; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+.task-title { font-weight:700; color:#8ec9fc; }
+.task-meta { font-size:.95rem; color:#cde1ff; }
+</style>
+
+<script>
+// Mode toggle
+function switchMode(){
+  const l=document.getElementById('lightCss'); const d=document.getElementById('darkCss');
+  if(d.disabled){ l.disabled=true; d.disabled=false; } else { l.disabled=false; d.disabled=true; }
+}
+
+// Tabs
+function showTab(tab){
+  document.querySelectorAll('section.tab-content').forEach(s=>s.classList.remove('active'));
+  const target = document.getElementById(tab);
+  if (target) target.classList.add('active');
+  document.querySelectorAll(".sidebar a").forEach(a=>a.classList.remove('active'));
+  const link = document.querySelector(`.sidebar a[data-tab="${tab}"]`);
+  if (link) link.classList.add('active');
+  if (history.pushState) history.replaceState(null, '', '#' + tab);
+}
+
+// Day.js-based Calendar
+let CAL_EVENTS = []; 
+let calView = 'week'; // 'month' | 'week' | 'day'
+let anchor = dayjs(); 
+let SELECTED_EVENT_ID = null;
+
+const hoursRange = () => Array.from({length:13},(_,i)=>8+i); // 08:00 to 20:00
+const mondayOf = d => { const w=d.day(); return d.subtract((w+6)%7,'day'); }; // Monday start
+const sameDay = (a,b) => dayjs(a).isSame(b,'day');
+
+function renderCalendar(){
+  const cont=document.getElementById('calendarContainer');
+  cont.innerHTML = `
+    <div class="cal-toolbar">
+      <div class="title" id="calTitle"></div>
+      <div class="btns">
+        <button type="button" onclick="nav(-1)">Prev</button>
+        <button type="button" onclick="nav(0)">Today</button>
+        <button type="button" onclick="nav(1)">Next</button>
+        <button type="button" onclick="vset('month')">Month</button>
+        <button type="button" onclick="vset('week')">Week</button>
+        <button type="button" onclick="vset('day')">Day</button>
+      </div>
+    </div>
+    <div id="calGrid" class="calendar-grid"></div>`;
+  drawCalendar();
+}
+function vset(v){ calView=v; drawCalendar(); }
+function nav(dir){
+  if(dir===0){ anchor = dayjs(); }
+  else if(calView==='month'){ anchor = anchor.add(dir,'month'); }
+  else if(calView==='week'){ anchor = anchor.add(7*dir,'day'); }
+  else { anchor = anchor.add(dir,'day'); }
+  drawCalendar();
+}
+
+function drawCalendar(){
+  const title=document.getElementById('calTitle');
+  const grid=document.getElementById('calGrid');
+
+  function renderEventDiv(e){
+    const sel = e.id === SELECTED_EVENT_ID ? ' selected' : '';
+    return `<div class="cal-event${sel}" data-eid="${e.id}" title="${e.title}">${e.title}</div>`;
+  }
+
+  if(calView==='month'){
+    title.textContent = anchor.format('MMMM YYYY');
+    grid.className='calendar-grid month';
+    const first = anchor.date(1);
+    const startOffset = (first.day()+6)%7;
+    const daysIn = anchor.daysInMonth();
+
+    let html = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=> `<div class="cal-cell header">${d}</div>`).join('');
+    for(let i=0;i<startOffset;i++) html += `<div class="cal-cell"></div>`;
+
+    for(let d=1; d<=daysIn; d++){
+      const date = anchor.date(d);
+      const evs = CAL_EVENTS.filter(e => sameDay(e.start, date));
+      const evh = evs.map(renderEventDiv).join('');
+      html += `<div class="cal-cell">${d}${evh}</div>`;
+    }
+    const total = 7 + startOffset + daysIn;
+    for(let i=total;i<49;i++) html += `<div class="cal-cell"></div>`;
+    grid.innerHTML = html;
+
+  } else if(calView==='week'){
+    const monday = mondayOf(anchor);
+    const days = Array.from({length:7},(_,i)=> monday.add(i,'day'));
+    title.textContent = `${days[0].format('D MMM YYYY')} - ${days[6].format('D MMM YYYY')}`;
+    grid.className='calendar-grid week';
+
+    let html = `<div class="cal-cell header"></div>`;
+    html += days.map(d=> `<div class="cal-cell header">${d.format('ddd DD')}</div>`).join('');
+    const hrs = hoursRange();
+    hrs.forEach(h=>{
+      html += `<div class="cal-cell time">${String(h).padStart(2,'0')}:00</div>`;
+      days.forEach(d=>{
+        const evs = CAL_EVENTS.filter(e => sameDay(e.start, d) && dayjs(e.start).hour()===h);
+        const evh = evs.map(renderEventDiv).join('');
+        html += `<div class="cal-cell">${evh}</div>`;
+      });
+    });
+    grid.innerHTML = html;
+
+  } else {
+    grid.className='calendar-grid day';
+    title.textContent = anchor.format('dddd, D MMMM YYYY');
+    const hrs = hoursRange();
+    let html = '';
+    hrs.forEach(h=>{
+      const evs = CAL_EVENTS.filter(e => sameDay(e.start, anchor) && dayjs(e.start).hour()===h);
+      const evh = evs.map(renderEventDiv).join('');
+      html += `<div class="cal-cell time">${String(h).padStart(2,'0')}:00</div><div class="cal-cell">${evh}</div>`;
+    });
+    grid.innerHTML = html;
+  }
+
+  // Attach click handlers for selecting events
+  document.querySelectorAll('.cal-event').forEach(div=>{
+    div.addEventListener('click', ()=>{
+      SELECTED_EVENT_ID = parseInt(div.getAttribute('data-eid'));
+      populateEditForm(SELECTED_EVENT_ID);
+      drawCalendar(); 
+
+      const box = document.getElementById('eventEditBox');
+      if (box) box.scrollIntoView({behavior:'smooth'});
+    });
+  });
+}
+
+function populateEditForm(id){
+  const e = CAL_EVENTS.find(ev=> ev.id === id);
+  if(!e) return;
+  document.getElementById('editEventId').value = e.id;
+  document.getElementById('editTitle').value = e.title;
+  document.getElementById('editStart').value = dayjs(e.start).format('YYYY-MM-DDTHH:mm');
+  document.getElementById('editEnd').value = dayjs(e.end).format('YYYY-MM-DDTHH:mm');
+  document.getElementById('editParticipants').value = (e.participants || []).join(', ');
+}
+
+async function loadEvents(){
+  const res = await fetch('/api/calendar');
+  const data = await res.json();
+  CAL_EVENTS = data.map(e => ({...e, start: dayjs(e.start), end: dayjs(e.end)}));
+  drawCalendar();
+}
+
+// Efficiency utilities
+function clamp(val,min,max){ return Math.max(min, Math.min(max, val)); }
+
+let efficiencyPoints = 50; // default
+function setEfficiency(val){
+  efficiencyPoints = clamp(val,0,100);
+  const el = document.getElementById('effValue');
+  if(el) el.textContent = efficiencyPoints;
+}
+
+// Active tasks tracking
+const ACTIVE_TASKS = new Map(); 
+
+function renderActiveTasks(){
+  const wrap = document.getElementById('activeTasksWrap');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  ACTIVE_TASKS.forEach((t, id)=>{
+    const elapsedMin = Math.floor(dayjs().diff(t.start,'minute'));
+    const card = document.createElement('div');
+    card.className='task-card';
+    card.innerHTML = `
+      <div>
+        <div class="task-title">${t.title}</div>
+        <div class="task-meta">Elapsed: <span data-elapsed="${id}">${elapsedMin}</span> min • Deadline: ${dayjs(t.deadline).format('YYYY-MM-DD HH:mm')}</div>
+      </div>
+      <div>
+        <button type="button" data-end="${id}">End Task</button>
+      </div>`;
+    wrap.appendChild(card);
+  });
+
+  wrap.querySelectorAll('button[data-end]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.getAttribute('data-end');
+      const t = ACTIVE_TASKS.get(id);
+      if(!t) return;
+      const now = dayjs();
+      if(now.isAfter(t.deadline)) {
+        setEfficiency(efficiencyPoints - 1);
+        alert('Missed the deadline. Efficiency decreased by 1.');
+      } else {
+        setEfficiency(efficiencyPoints + 1);
+        alert('Finished before deadline. Efficiency increased by 1.');
+      }
+      ACTIVE_TASKS.delete(id);
+      renderActiveTasks();
+    });
+  });
+}
+
+function tickActiveElapsed(){
+  document.querySelectorAll('[data-elapsed]').forEach(span=>{
+    const id = span.getAttribute('data-elapsed');
+    const t = ACTIVE_TASKS.get(id);
+    if(!t) return;
+    span.textContent = Math.floor(dayjs().diff(t.start,'minute'));
+  });
+}
+
+setInterval(tickActiveElapsed, 60000); // update every minute
+
+// Boot
+document.addEventListener('DOMContentLoaded', ()=>{
+  // Sidebar with data-tab
+  const side = document.querySelector('.sidebar');
+  if (side) {
+    side.addEventListener('click', (e) => {
+      const a = e.target.closest('a');
+      if (!a) return;
+      const tab = a.getAttribute('data-tab');
+      if (!tab) return;
+      e.preventDefault();
+      showTab(tab);
+    });
+  }
+
+  const initialTab = location.hash ? location.hash.substring(1) : 'agents';
+  showTab(initialTab);
+
+  renderCalendar();
+  loadEvents();
+
+  // Add event
+  const ef=document.getElementById('addEventForm');
+  if(ef){
+    ef.addEventListener('submit', async function(e){
+      e.preventDefault();
+      const payload = {
+        title: this.title.value,
+        start: this.start.value,
+        end: this.end.value,
+        participants: this.participants.value ? this.participants.value.split(',').map(s=>s.trim()) : []
+      };
+      const res = await fetch('/api/calendar',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      const ev = await res.json();
+      await loadEvents();
+      this.reset();
+
+    
+      await fetch('/api/reminders', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          event_id: ev.id,
+          reminder_time: payload.start,
+          message: `Event: ${payload.title}`
+        })
+      });
+      await refreshReminders();
+    });
+  }
+
+  document.getElementById('editEventForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const id = parseInt(document.getElementById('editEventId').value);
+    const body = {
+      id,
+      title: document.getElementById('editTitle').value,
+      start: document.getElementById('editStart').value,
+      end: document.getElementById('editEnd').value,
+      participants: document.getElementById('editParticipants').value ? document.getElementById('editParticipants').value.split(',').map(s=>s.trim()) : []
+    };
+    await fetch('/api/calendar', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    await loadEvents();
+    alert('Event updated');
+  });
+
+  document.getElementById('deleteEventBtn').addEventListener('click', async ()=>{
+    const id = parseInt(document.getElementById('editEventId').value);
+    if(!id) { alert('No event selected'); return; }
+    await fetch('/api/calendar', {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})});
+    SELECTED_EVENT_ID = null;
+    await loadEvents();
+    document.getElementById('editEventForm').reset();
+    alert('Event deleted');
+  });
+
+  // Add reminder form handlers 
+  const rform = document.getElementById('addReminderForm');
+  rform.addEventListener('submit', async function(e){
+    e.preventDefault();
+    const payload = {
+      event_id: this.event_id.value,
+      reminder_time: this.reminder_time.value,
+      message: this.message.value
+    };
+    await fetch('/api/reminders', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    await refreshReminders();
+    this.reset();
+  });
+
+  setEfficiency(efficiencyPoints);
+  const tform = document.getElementById('addTaskForm');
+  tform.addEventListener('submit', async function(e){
+    e.preventDefault();
+    const title = this.content.value;
+    const minutes = parseInt(this.time.value,10);
+    if(isNaN(minutes) || minutes <= 0){ alert('Enter time required (mins)'); return; }
+
+    await fetch('/api/tasks', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ content:title, time:String(minutes), efficiency: 0 })
+    });
+
+    const id = Date.now().toString();
+    const start = dayjs();
+    const deadline = start.add(minutes,'minute');
+    ACTIVE_TASKS.set(id, {title, start, deadline});
+    renderActiveTasks();
+    this.reset();
+  });
+
+  refreshReminders();
+});
+
+// Reminders panel logic
+async function refreshReminders(){
+  const res = await fetch('/api/reminders');
+  const data = await res.json();
+  const panel = document.getElementById('remindersPanelList');
+  if(!panel) return;
+  panel.innerHTML = '';
+  data.forEach(r=>{
+    const li = document.createElement('div');
+    li.className='reminder-item';
+    li.innerHTML = `
+      <div>
+        <div style="font-weight:700;">${r.message}</div>
+        <div style="font-size:.9rem;">Event ${r.event_id} • ${r.reminder_time}</div>
+      </div>
+      <div><button type="button" data-dismiss="${r.id}">Dismiss</button></div>`;
+    panel.appendChild(li);
+  });
+
+  panel.querySelectorAll('button[data-dismiss]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = parseInt(btn.getAttribute('data-dismiss'));
+      await fetch('/api/reminders', {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})});
+      await refreshReminders();
+    });
+  });
+}
+
+// Dismiss all reminders
+async function dismissAllReminders(){
+  const res = await fetch('/api/reminders');
+  const data = await res.json();
+  for (const r of data){
+    await fetch('/api/reminders', {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:r.id})});
+  }
+  await refreshReminders();
+}
+
+// Agents submit 
+async function submitTask() {
+  const description = document.getElementById("taskDesc").value.trim();
+  const participantsInput = document.getElementById("participants").value.trim();
+  const selectedAgents = [...document.querySelectorAll(".agent-item input[type=checkbox]:checked")].map(cb => cb.value);
+
+  if (!description) { alert("Please enter a task description."); return; }
+  if (selectedAgents.length === 0) { alert("Please select at least one agent."); return; }
+
+  const participants = participantsInput ? participantsInput.split(",").map(p => p.trim()) : [];
+  const response = await fetch("/api/execute_task_filtered", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description, participants, agents: selectedAgents }),
+  });
+  const data = await response.json();
+  document.querySelectorAll(".result-content").forEach(div => (div.textContent = ''));
+  selectedAgents.forEach(agentName => {
+    const container = document.getElementById(agentName + "Result");
+    if (container) {
+      container.textContent = typeof data[agentName] === "string" ? data[agentName] : JSON.stringify(data[agentName], null, 2);
+      container.parentElement.classList.remove('collapsed');
+    }
+  });
+  document.getElementById("resultsSection").scrollIntoView({ behavior: "smooth" });
+}
+</script>
+</head>
+
+<body>
+<header>
+  <h1>Multi-Agent Productivity Application</h1>
+  <button id="modeToggle" onclick="switchMode()">Dark/Light Mode</button>
+</header>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <a href="#" class="active" data-tab="agents">AI Agents</a>
+  <a href="#" data-tab="calendar">Calendar</a>
+  <a href="#" data-tab="reminders">Reminders</a>
+  <a href="#" data-tab="events">Current Events</a>
+  <a href="#" data-tab="tasks">Tasks</a>
+</div>
+
+<main>
+  <!-- AI Agents Tab -->
+  <section id="agents" class="tab-content active">
+    <label for="taskDesc">Task or Workflow Description</label>
+    <textarea id="taskDesc" placeholder="E.g. Prepare quarterly presentation and schedule review"></textarea>
+
+    <label for="participants">Participants (comma-separated emails)</label>
+    <input id="participants" placeholder="alice@example.com, bob@example.com" />
+
+    <section class="agent-selection">
+      <label>Select Agents to run:</label>
+      <div class="agent-list">
+        <label class="agent-item"><input type="checkbox" value="WorkflowAnalysisAgent" /><span>Workflow Analysis</span></label>
+        <label class="agent-item"><input type="checkbox" value="MeetingSchedulerAgent" /><span>Meeting Scheduler</span></label>
+        <label class="agent-item"><input type="checkbox" value="EmailNotificationAgent" /><span>Email Notification</span></label>
+        <label class="agent-item"><input type="checkbox" value="KnowledgeResourceAgent" /><span>Knowledge Resource</span></label>
+        <label class="agent-item"><input type="checkbox" value="ProductivityAnalyticsAgent" /><span>Productivity Analytics</span></label>
+        <label class="agent-item"><input type="checkbox" value="TimeWasterAgent" /><span>Time Waster Tracker</span></label>
+        <label class="agent-item"><input type="checkbox" value="AutomationAgent" /><span>Automation Tasks</span></label>
+      </div>
+    </section>
+
+    <button id="submitTaskBtn" onclick="submitTask()">Run Selected Agents</button>
+
+    <section class="results" id="resultsSection">
+      <h2>Agent Results (click title to toggle)</h2>
+      <div class="agent-result collapsed"><h3>Workflow Analysis</h3><pre id="WorkflowAnalysisAgentResult" class="result-content"></pre></div>
+      <div class="agent-result collapsed"><h3>Meeting Scheduler</h3><pre id="MeetingSchedulerAgentResult" class="result-content"></pre></div>
+      <div class="agent-result collapsed"><h3>Email Notification</h3><pre id="EmailNotificationAgentResult" class="result-content"></pre></div>
+      <div class="agent-result collapsed"><h3>Knowledge Resource</h3><pre id="KnowledgeResourceAgentResult" class="result-content"></pre></div>
+      <div class="agent-result collapsed"><h3>Productivity Analytics</h3><pre id="ProductivityAnalyticsAgentResult" class="result-content"></pre></div>
+      <div class="agent-result collapsed"><h3>Time Waster Tracker</h3><pre id="TimeWasterAgentResult" class="result-content"></pre></div>
+      <div class="agent-result collapsed"><h3>Automation Tasks</h3><pre id="AutomationAgentResult" class="result-content"></pre></div>
+    </section>
+  </section>
+
+  <!-- Calendar Tab -->
+  <section id="calendar" class="tab-content">
+    <h2>Live Calendar</h2>
+    <div id="calendarContainer"></div>
+    <form id="addEventForm">
+      <label for="title">Event Title</label>
+      <input type="text" name="title" id="title" placeholder="Event Title" required>
+      <label for="start">Start Date and Time</label>
+      <input type="datetime-local" name="start" id="start" required>
+      <label for="end">End Date and Time</label>
+      <input type="datetime-local" name="end" id="end" required>
+      <label for="participantsInput">Participants (comma separated)</label>
+      <input type="text" name="participants" id="participantsInput" placeholder="alice@example.com,bob@example.com">
+      <button type="submit">Add Event</button>
+    </form>
+
+    <!-- Event Edit/Delete Section -->
+    <div id="eventEditBox" style="margin-top:16px; background:#6b21ea; border:2px solid #e5e7eb; border-radius:10px; padding:12px; max-width:350px;">
+      <h3 style="margin-top:0; color:#c8d027;">Edit / Delete Selected Event</h3>
+       <form id="editEventForm">
+       <input type="hidden" id="editEventId">
+
+        <label for="editTitle">Title</label>
+       <input type="text" id="editTitle" placeholder="Title" style="width:98%; margin-bottom:8px; padding:6px; border:1px solid #ccc; border-radius:6px;">
+
+       <label for="editStart">Start</label>
+       <input type="datetime-local" id="editStart" style="width:98%; margin-bottom:8px; padding:6px; border:1px solid #ccc; border-radius:6px;">
+
+       <label for="editEnd">End</label>
+       <input type="datetime-local" id="editEnd" style="width:98%; margin-bottom:8px; padding:6px; border:1px solid #ccc; border-radius:6px;">
+
+       <label for="editParticipants">Participants (comma separated)</label>
+       <input type="text" id="editParticipants" placeholder="alice@example.com,bob@example.com" style="width:98%; margin-bottom:8px; padding:6px; border:1px solid #ccc; border-radius:6px;">
+
+       <div style="display:flex; gap:10px; margin-top:8px;">
+        <button type="submit" style="flex:1; background:#0e7321; color:white; padding:8px; border:none; border-radius:6px; cursor:pointer;">Save Changes</button>
+         <button type="button" id="deleteEventBtn" style="flex:1; background:#e11d48; color:white; padding:8px; border:none; border-radius:6px; cursor:pointer;">Delete Event</button>
+       </div>
+
+      </form>
+    </div>
+  </section>
+
+  <!-- Reminders Tab -->
+  <section id="reminders" class="tab-content">
+    <h2>Reminders</h2>
+
+    <div class="reminders-panel">
+      <h3>
+        <span>Current Reminders</span>
+        <button type="button" onclick="dismissAllReminders()">Dismiss All</button>
+      </h3>
+      <div id="remindersPanelList"></div>
+    </div>
+
+    <form id="addReminderForm">
+      <label for="reminderEventId">Event ID</label>
+      <input type="number" id="reminderEventId" name="event_id" placeholder="Event ID">
+      <label for="reminderTime">Reminder Time</label>
+      <input type="datetime-local" id="reminderTime" name="reminder_time" required>
+      <label for="reminderMessage">Message</label>
+      <input type="text" id="reminderMessage" name="message" placeholder="Reminder Message" required>
+      <button type="submit">Add Reminder</button>
+    </form>
+  </section>
+
+  <!-- Current Events Tab -->
+  <section id="events" class="tab-content">
+    <h2>Current Events</h2>
+    <div id="eventsList"></div>
+  </section>
+
+  <!-- Tasks Tab -->
+  <section id="tasks" class="tab-content">
+    <h2>Tasks</h2>
+    <form id="addTaskForm">
+      <label for="taskContent">Task Description</label>
+      <input type="text" id="taskContent" name="content" placeholder="Task Description" required>
+      <label for="taskTime">Time Required (mins)</label>
+      <input type="text" id="taskTime" name="time" placeholder="Time Required" required>
+
+      <label for="taskDeadline">Deadline (auto = now + minutes if left blank)</label>
+      <input type="datetime-local" id="taskDeadline" placeholder="YYYY-MM-DDTHH:mm">
+
+      <input type="number" id="taskEfficiency" name="efficiency" placeholder="Efficiency (0-100)" style="display:none;">
+      <button type="submit">Add Task</button>
+    </form>
+
+    <!-- Efficiency Points widget -->
+    <div class="efficiency-widget">
+      <div style="font-weight:700;">Efficiency Points:</div>
+      <span class="value" id="effValue">100</span>
+    </div>
+
+    <!-- Active tasks panel -->
+    <div class="active-tasks" id="activeTasksWrap"></div>
+  </section>
+</main>
+</body>
+</html>

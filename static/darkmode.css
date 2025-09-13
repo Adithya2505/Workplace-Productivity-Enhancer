@@ -1,0 +1,105 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 0 20px 40px;
+    background-color: #181d23;
+    color: #e5e7eb;
+}
+header {
+    text-align: center;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+    border-bottom: 3px solid #3b82f6;
+}
+header h1 {
+  margin: 0;
+  font-weight: 700;
+  color: #afcbff;
+}
+.agent-selection {
+  margin-bottom: 25px;
+}
+.agent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+.agent-item {
+  min-width: 200px;
+  background: #22262e;
+  border-radius: 8px;
+  padding: 10px 15px;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.18);
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+}
+.agent-item:hover {
+  border-color: #3b82f6;
+}
+.agent-item input[type="checkbox"]:checked + span {
+  font-weight: 700;
+  color: #8ec9fc;
+}
+label[for="taskDesc"], label[for="participants"] {
+  font-weight: 700;
+  margin-bottom: 6px;
+  display: block;
+}
+#taskDesc, #participants {
+  width: 100%;
+  min-height: 90px;
+  border-radius: 6px;
+  border: 1px solid #3b82f6;
+  background: #22262e;
+  color: #e5e7eb;
+  padding: 12px 14px;
+  font-size: 1rem;
+  resize: vertical;
+}
+button {
+  margin-top: 18px;
+  background-color: #3b82f6;
+  color: white;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+button:disabled {
+  background-color: #274689;
+  cursor: not-allowed;
+}
+button:hover:not(:disabled) {
+  background-color: #265c9e;
+}
+.results {
+  margin-top: 30px;
+}
+.agent-result {
+  background: #22262e;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 0.22);
+  padding: 20px;
+  margin-bottom: 25px;
+}
+.agent-result > h3 {
+  margin: 0 0 15px 0;
+  color: #8ec9fc;
+  cursor: pointer;
+  user-select: none;
+}
+.result-content {
+  white-space: pre-wrap;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: #cde1ff;
+}
+.collapsed .result-content {
+  display: none;
+}
